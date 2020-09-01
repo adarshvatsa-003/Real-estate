@@ -129,14 +129,14 @@ for x in df3:
 print(' outlier length  is', len(outlier))
 
 
-######################################################################################
+
 #this part needs correction
 sample = pd.DataFrame(outlier, columns=['Price'])
 print(sample)
 
 df2.drop(df2['Price'][(df3>Q3 + 1.5 * IQR) or df3<Q1 - 1.5 * IQR].index, inplace=True)
 print(df2.shape)
-#############################################################################################
+
 
 #plotting correlation graph
 plt.figure(figsize=(10, 6))
