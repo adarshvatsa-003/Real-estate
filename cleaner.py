@@ -3,19 +3,24 @@ import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
 import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn import tree
+from sklearn.model_selection import ShuffleSplit
+from sklearn.model_selection import cross_val_score
+
 matplotlib.rcParams["figure.figsize"] = (20, 10)
 
 df1=pd.read_csv("house_price.csv")
-print(df1.shape)
 
 #remove unnecessary features
 df2 = df1.drop(['Postcode', 'Bedroom2', 'BuildingArea'], axis='columns')
-print(df2.shape)
+
 #identify object datatype(numeric,boolean,char,date but not string)
 #print(df2.select_dtypes(['object']).columns)
 
 # Convert objects to categorical variables
-obj_cats = ['Suburb','Address', 'Method', 'SellerG', 'Regionname', 'CouncilArea']
+obj_cats = ['Suburb', 'Method', 'SellerG', 'Regionname', 'CouncilArea']
 
 for colname in obj_cats:
     df2[colname] = df2[colname].astype('category')
@@ -104,7 +109,7 @@ axes[1,0].set_ylabel('Price')
 axes[1,0].set_title('Bathroom v Price')
 
 # Plot [1,1]
-axes[1,1].scatter(x = 'CouncilArea', y='Price', data=df2, edgecolor = 'b')
+axes[1,1].scatter(x = 'CouncilArea', y='Price', data=df2, edgecolor='b')
 axes[1,0].set_xlabel('CouncilArea')
 axes[1,1].set_ylabel('Price')
 axes[1,1].set_title('CouncilArea v Price')
@@ -134,13 +139,53 @@ print(' outlier length  is', len(outlier))
 sample = pd.DataFrame(outlier, columns=['Price'])
 print(sample)
 
-df2.drop(df2['Price'][(df3>Q3 + 1.5 * IQR) or df3<Q1 - 1.5 * IQR].index, inplace=True)
-print(df2.shape)
 
+df2=df2[df2.Price<outlier[0]]  #Drop all rows where price<outlier's minimum value
+
+print(df2.shape)
 
 #plotting correlation graph
 plt.figure(figsize=(10, 6))
-sns.heatmap(df2.corr(), cmap = 'coolwarm', linewidth=1, annot=True, annot_kws={"size": 9})
+sns.heatmap(df2.corr(), cmap='coolwarm', linewidth=1, annot=True, annot_kws={"size": 9})
 plt.title('Variable Correlation')
 plt.show()
 
+print(df2.select_dtypes(['float64', 'int64']).columns)
+
+dummy = pd.get_dummies(df2.Suburb) #make suburb column feature instead of row for regression
+df4 = pd.concat([df2, dummy], axis=1)
+df5=df4.drop(['Suburb'], axis='columns')
+print(df5.head(10))
+##############################################################################################################################
+X=df5.drop(['Address', 'Price', 'Type', 'Method', 'SellerG', 'Date', 'CouncilArea', 'Regionname'], axis='columns')
+print(X.head(10))
+Y=df5.Price
+
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=.20, random_state=0)
+
+
+
+clf=tree.DecisionTreeRegressor()
+clf=clf.fit(X_train,y_train)
+print(clf.score(X_test,y_test))
+cv = ShuffleSplit(n_splits=5, test_size=0.2, random_state=0)
+
+print(cross_val_score(tree.DecisionTreeRegressor(), X, Y, cv=cv))#accuracy is around 65% on avg
+
+
+y_pred = clf.predict(X_test)
+###############################################################################
+def predict_price(Suburb,Rooms,Distance,Bathroom,Car):#function to predict price
+    loc_index = np.where(X.columns==Suburb)[0][0]
+
+    x = np.zeros(len(X.columns))
+    x[0] = Rooms
+    x[1] = Distance
+    x[2] = Bathroom
+    x[3] = Car
+    if loc_index >= 0:
+        x[loc_index] = 1
+
+    return clf.predict([x])[0]
+
+print(predict_price('Abbotsford',2,2.5,1,1))
